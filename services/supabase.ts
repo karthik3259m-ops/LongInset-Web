@@ -1,14 +1,14 @@
-/// <reference types="vite/client" />
 import { createClient } from '@supabase/supabase-js';
 
 // ---------------------------------------------------------
 // CONFIGURATION
 // ---------------------------------------------------------
 
-// Use environment variables for sensitive data
-// In Vite, use import.meta.env.VITE_...
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || '';
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+// Access environment variables. 
+// We use process.env here because we defined them in vite.config.ts.
+// This ensures the values are statically replaced at build time.
+const SUPABASE_URL = process.env.VITE_SUPABASE_URL || '';
+const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY || '';
 
 if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
   console.warn('Supabase URL or Anon Key is missing. Check your environment variables.');

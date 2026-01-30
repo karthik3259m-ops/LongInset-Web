@@ -3,7 +3,6 @@ import { GOVERNANCE_STRUCTURE, CAREER_GROUPS, STATE_EXAM_GROUPS, LEADERSHIP_DATA
 import { supabase } from '../services/supabase';
 import { CareerGroup } from '../types';
 import { Landmark, Briefcase, ChevronRight, User, X, Search, FileText, Calendar, Building, MapPin, Target, Users, Crown, BookOpen, Lightbulb, Sparkles } from 'lucide-react';
-import { GoogleGenAI } from "@google/genai";
 
 type Tab = 'structure' | 'careers' | 'state-groups' | 'leadership';
 
@@ -48,17 +47,15 @@ export const Governance: React.FC = () => {
           // 2. Not found in DB? Generate with AI (Train the DB)
           console.log(`Exam '${examName}' not found in DB. Generating with AI...`);
           
-          const apiKey = process.env.API_KEY;
+          const apiKey = process.env.GROK_API_KEY;
           if (!apiKey) {
-             // Fallback if no API key
              throw new Error("API Key missing");
           }
 
-          const ai = new GoogleGenAI({ apiKey });
           const prompt = `
             You are an expert on Indian competitive exams.
             Generate a JSON object for the exam: "${examName}".
-            Strictly follow this JSON schema:
+            Strictly follow this JSON schema and return ONLY the JSON (no markdown fences):
             {
               "description": "A concise overview of the exam (max 50 words).",
               "syllabus_highlights": ["Topic 1", "Topic 2", "Topic 3", "Topic 4"],
@@ -66,16 +63,35 @@ export const Governance: React.FC = () => {
             }
           `;
 
-          const result = await ai.models.generateContent({
-             model: 'gemini-2.5-flash-latest',
-             contents: prompt,
-             config: {
-                responseMimeType: 'application/json'
-             }
+          const response = await fetch("https://api.x.ai/v1/chat/completions", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${apiKey}`
+            },
+            body: JSON.stringify({
+                messages: [
+                    { role: "system", content: "You are a helpful assistant that outputs strict JSON." },
+                    { role: "user", content: prompt }
+                ],
+                model: "grok-2-latest",
+                temperature: 0.1,
+                stream: false
+            })
           });
 
-          if (result.text) {
-              const aiData = JSON.parse(result.text);
+          if (!response.ok) {
+              throw new Error("Failed to fetch from Grok API");
+          }
+
+          const result = await response.json();
+          let rawText = result.choices?.[0]?.message?.content;
+
+          if (rawText) {
+              // Clean markdown if present
+              rawText = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
+              
+              const aiData = JSON.parse(rawText);
               const newExamEntry = {
                   exam_name: examName,
                   description: aiData.description,
@@ -105,7 +121,7 @@ export const Governance: React.FC = () => {
       // Fallback UI
       setSelectedExamDetail({
           exam_name: examName,
-          description: "Detailed information for this exam is currently unavailable. Please try again later.",
+          description: "Detailed information for this exam is currently unavailable. Please check your API key or connection.",
           syllabus_highlights: [],
           prep_tips: []
       });
@@ -584,7 +600,7 @@ export const Governance: React.FC = () => {
                             
                             <div className="flex items-center gap-2 justify-center pt-2">
                                 <Sparkles size={14} className="text-indigo-400" />
-                                <span className="text-xs text-indigo-400 font-medium">Powered by Gemini AI & ExamGPS DB</span>
+                                <span className="text-xs text-indigo-400 font-medium">Powered by Grok (xAI) & ExamGPS DB</span>
                             </div>
                         </div>
                     ) : (

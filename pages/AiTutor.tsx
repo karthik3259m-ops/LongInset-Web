@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useStore } from '../store/useStore';
 import { ChatMessage, Question } from '../types';
-import { Send, Bot, User, Sparkles, AlertCircle } from 'lucide-react';
-import { GoogleGenAI } from "@google/genai";
+import { Send, Bot, User, Sparkles } from 'lucide-react';
 
 export const AiTutor: React.FC = () => {
   const { currentRoute, user, mastery } = useStore();
@@ -55,13 +54,11 @@ export const AiTutor: React.FC = () => {
     setError(null);
 
     try {
-        const apiKey = process.env.API_KEY;
+        const apiKey = process.env.GROK_API_KEY;
         if (!apiKey) {
             throw new Error("API Key not found. Please check configuration.");
         }
 
-        const ai = new GoogleGenAI({ apiKey });
-        
         // Build System Context
         const weakSpots = mastery.filter(t => t.isWeakSpot).map(t => t.topicName).join(', ');
         const systemPrompt = `
@@ -81,23 +78,42 @@ export const AiTutor: React.FC = () => {
             ${contextQuestion ? `Current Context Question: ${JSON.stringify(contextQuestion)}` : ''}
         `;
 
-        // We use generateContent for a single turn response here to keep it simple and stateless for this demo,
-        // but passing previous history would be better for full chat. 
-        // For this implementation, we will pass the last few messages as context manually.
-        const recentHistory = messages.slice(-4).map(m => `${m.role === 'user' ? 'User' : 'Coach'}: ${m.content}`).join('\n');
-        const fullPrompt = `${systemPrompt}\n\nRecent Conversation:\n${recentHistory}\nUser: ${input}\nCoach:`;
+        // Prepare message history for context
+        // We take the last few messages to maintain context window
+        const apiMessages = [
+            { role: "system", content: systemPrompt },
+            ...messages.slice(-6).map(m => ({ 
+                role: m.role === 'user' ? 'user' : 'assistant', 
+                content: m.content 
+            })),
+            { role: "user", content: input }
+        ];
 
-        const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash-latest',
-            contents: fullPrompt,
+        const response = await fetch("https://api.x.ai/v1/chat/completions", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${apiKey}`
+            },
+            body: JSON.stringify({
+                messages: apiMessages,
+                model: "grok-2-latest",
+                stream: false,
+                temperature: 0.7
+            })
         });
 
-        const aiText = response.text;
+        if (!response.ok) {
+            throw new Error(`Grok API Error: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        const aiText = data.choices?.[0]?.message?.content || "I'm having trouble thinking of a response right now.";
 
         const aiResponse: ChatMessage = {
             id: (Date.now() + 1).toString(),
             role: 'assistant',
-            content: aiText || "I'm having trouble connecting to my knowledge base right now. Let's try again.",
+            content: aiText,
             timestamp: new Date()
         };
         setMessages(prev => [...prev, aiResponse]);
@@ -109,7 +125,7 @@ export const AiTutor: React.FC = () => {
         setMessages(prev => [...prev, {
             id: Date.now().toString(),
             role: 'assistant',
-            content: "⚠️ *Connection Error:* I couldn't reach the server. Please try again.",
+            content: "⚠️ *Connection Error:* I couldn't reach the server. Please check your API key and connection.",
             timestamp: new Date()
         }]);
     } finally {
@@ -136,7 +152,7 @@ export const AiTutor: React.FC = () => {
                 <h2 className="font-bold text-gray-900 leading-tight">AI Coach</h2>
                 <p className="text-xs text-gray-500 flex items-center gap-1">
                     <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>
-                    Gemini 2.5 Flash • {user?.examTarget}
+                    Grok AI • {user?.examTarget}
                 </p>
             </div>
         </div>
