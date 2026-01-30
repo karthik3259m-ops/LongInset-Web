@@ -1,10 +1,18 @@
+/// <reference types="vite/client" />
 import { createClient } from '@supabase/supabase-js';
 
 // ---------------------------------------------------------
 // CONFIGURATION
 // ---------------------------------------------------------
-const SUPABASE_URL = 'https://wkbfjjnpzparrtcevhrh.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_JfiwRwpLrB2f81oUmkim4Q_tcgeeN64';
+
+// Use environment variables for sensitive data
+// In Vite, use import.meta.env.VITE_...
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || '';
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+
+if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+  console.warn('Supabase URL or Anon Key is missing. Check your environment variables.');
+}
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 

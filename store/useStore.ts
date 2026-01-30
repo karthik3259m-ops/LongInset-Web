@@ -36,8 +36,8 @@ interface AppState {
   navigate: (path: string, state?: any) => void;
 }
 
-// The production URL for the environment
-const PRODUCTION_URL = 'https://aistudio.google.com/apps/drive/1vAclUzpaJqOEDBZSy3KgjqYL7puJ4EVs';
+// Automatically detect the production URL for redirects (e.g., email confirmation)
+const PRODUCTION_URL = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
 
 export const useStore = create<AppState>((set, get) => ({
   user: null,
@@ -137,7 +137,7 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   register: async (name, email, password, examTarget) => {
-    // Explicitly use the production URL for email redirection
+    // Explicitly use the dynamic PRODUCTION_URL for email redirection
     const redirectUrl = PRODUCTION_URL;
 
     const { data, error } = await supabase.auth.signUp({
@@ -188,7 +188,7 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   resetPassword: async (email) => {
-    // Explicitly use the production URL for password reset redirection
+    // Explicitly use the dynamic PRODUCTION_URL for password reset redirection
     const redirectUrl = PRODUCTION_URL;
     
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
